@@ -1,0 +1,9 @@
+flask
+flask_sqlalchemy
+flask_login
+pandas
+python-dotenv
+xhtml2pdf
+prophet
+openpyxl
+werkzeug

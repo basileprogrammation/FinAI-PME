@@ -1,0 +1,1 @@
+// JS pour rediriger après le splash screen

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-6">
+  <h1 class="text-3xl font-bold mb-4">Bienvenue sur FinAI-PME 👋</h1>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <!-- Carte de résumé -->
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-2">Aperçu rapide</h2>
+      <p>👤 Utilisateur connecté : <strong>{{ user.email }}</strong></p>
+      <p>📅 Dernière connexion : {{ user.last_login.strftime('%d/%m/%Y à %Hh%M') if user.last_login else 'N/A' }}</p>
+      <p class="mt-2">🔐 Vos données sont sécurisées et privées.</p>
+    </div>
+
+    <!-- Alertes -->
+    <div class="bg-yellow-100 p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-2">🔔 Alertes FinAI</h2>
+      <ul class="list-disc pl-6 text-sm space-y-1">
+        <li>Recevez des alertes si vos dépenses augmentent ou si un découvert est prédit</li>
+        <li>Analyse automatique de vos catégories de dépenses</li>
+        <li>Prévisions IA sur 30 jours avec Prophet</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="mt-8 flex space-x-4">
+    <a href="/transactions" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">Voir mes transactions</a>
+    <a href="/forecast" class="bg-purple-600 text-white px-4 py-2 rounded shadow hover:bg-purple-700">Prévisions IA</a>
+    <a href="/logout" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 ml-auto">Déconnexion</a>
+  </div>
+</div>
+{% endblock %}

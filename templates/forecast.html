@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-6">
+  <h2 class="text-2xl font-bold mb-4">🔮 Prévision de Trésorerie (IA)</h2>
+
+  {% if alerte %}
+    <div class="bg-red-100 text-red-700 p-4 rounded mb-4 shadow">
+      ⚠️ Attention : la prévision IA détecte un risque de solde négatif dans les 30 prochains jours.
+    </div>
+    <div class="bg-green-100 text-green-800 p-4 rounded shadow mb-6">
+        <h3 class="text-lg font-semibold mb-2">💡 Conseil personnalisé FinAI</h3>
+        <p>{{ conseil }}</p>
+    </div>
+  {% endif %}
+
+  {% if historique and prevision %}
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+      <div class="bg-green-100 text-green-800 p-4 rounded shadow">
+        <h4 class="font-bold text-lg">Total Revenus</h4>
+        <p class="text-2xl">{{ total_revenus }} €</p>
+      </div>
+      <div class="bg-red-100 text-red-800 p-4 rounded shadow">
+        <h4 class="font-bold text-lg">Total Dépenses</h4>
+        <p class="text-2xl">{{ total_depenses }} €</p>
+      </div>
+      <div class="bg-purple-100 text-purple-800 p-4 rounded shadow">
+        <h4 class="font-bold text-lg">Solde Prévu (30j)</h4>
+        <p class="text-2xl flex items-center gap-2">
+          {{ solde_prevu }} €
+          <span class="text-sm font-medium">{{ tendance }}</span>
+        </p>
+      </div>
+      <div class="p-4 rounded shadow {{ sante.class }}">
+        <h4 class="font-bold text-lg">Santé financière</h4>
+        <p class="text-xl">{{ sante.label }}</p>
+      </div>
+    </div>
+
+    <canvas id="forecastChart" class="w-full bg-white p-4 rounded shadow"></canvas>
+
+  {% else %}
+    <p class="text-gray-600">Pas encore assez de données pour générer une prévision.</p>
+  {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const historiqueData = {{ historique | default([]) | tojson }};
+  const previsionData = {{ prevision | default([]) | tojson }};
+
+  const labels = historiqueData.map(d => d.day).concat(previsionData.map(d => d.day));
+
+  const revenus = historiqueData.map(d => d.type === 'revenu' ? d.value : null);
+  const depenses = historiqueData.map(d => d.type === 'depense' ? d.value : null);
+  const previsionValues = Array(historiqueData.length).fill(null).concat(previsionData.map(d => d.value));
+
+  const ctx = document.getElementById('forecastChart');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Revenus (€)',
+          data: revenus,
+          backgroundColor: 'rgba(34,197,94,0.7)' // vert
+        },
+        {
+          type: 'bar',
+          label: 'Dépenses (€)',
+          data: depenses,
+          backgroundColor: 'rgba(239,68,68,0.7)' // rouge
+        },
+        {
+          type: 'line',
+          label: 'Prévision IA (€)',
+          data: previsionValues,
+          borderColor: 'purple',
+          borderDash: [5, 5],
+          tension: 0.3,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}
