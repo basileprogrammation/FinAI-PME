@@ -2,12 +2,14 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Connexion - FinAI-PME</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
-  <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white p-6 sm:p-8 rounded shadow-md w-full max-w-sm">
     <h2 class="text-2xl font-bold mb-4 text-center">Connexion</h2>
+
     {% with messages = get_flashed_messages() %}
       {% if messages %}
         <div class="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
@@ -15,11 +17,13 @@
         </div>
       {% endif %}
     {% endwith %}
+
     <form method="POST" action="/login" class="space-y-4">
-      <input type="email" name="email" placeholder="Email" required class="w-full border p-2 rounded" />
-      <input type="password" name="password" placeholder="Mot de passe" required class="w-full border p-2 rounded" />
-      <button class="bg-blue-600 text-white w-full p-2 rounded hover:bg-blue-700">Se connecter</button>
+      <input type="email" name="email" placeholder="Email" required class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <input type="password" name="password" placeholder="Mot de passe" required class="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <button type="submit" class="bg-blue-600 text-white w-full p-2 rounded hover:bg-blue-700">Se connecter</button>
     </form>
+
     <p class="text-center text-sm mt-4">Pas encore inscrit ? 
       <a href="/register" class="text-blue-600 hover:underline">Créer un compte</a>
     </p>

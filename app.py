@@ -100,9 +100,44 @@ def logout():
 @app.route('/transactions')
 @login_required
 def transactions():
-    txs = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date).all()
+    selected = request.args.get('categorie')
+    periode = request.args.get('periode')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    query = Transaction.query.filter_by(user_id=current_user.id)
+
+    if selected:
+        query = query.filter_by(category=selected)
+
+    # ✅ Période dynamique
+    if start_date:
+        query = query.filter(Transaction.date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.date <= end_date)
+
+    # Optionnel : filtres fixes en plus
+    if periode == 'mois':
+        query = query.filter(Transaction.date >= date.today().replace(day=1))
+    elif periode == 'semaine':
+        start_of_week = date.today() - timedelta(days=date.today().weekday())
+        query = query.filter(Transaction.date >= start_of_week)
+
+    txs = query.order_by(Transaction.date).all()
+    total = sum(t.amount for t in txs)
     alerts = generate_alerts(txs)
-    return render_template('transactions.html', transactions=txs, alerts=alerts)
+    categories = list({t.category for t in Transaction.query.filter_by(user_id=current_user.id).all()})
+    return render_template(
+        'transactions.html',
+        transactions=txs,
+        alerts=alerts,
+        categories=categories,
+        selected=selected,
+        periode=periode,
+        total=total,
+        start_date=start_date,
+        end_date=end_date
+    )
 
 @app.route('/add', methods=['POST'])
 @login_required
@@ -208,7 +243,16 @@ def generer_conseil(transactions, prevision):
 @app.route('/forecast')
 @login_required
 def forecast():
-    txs = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date).all()
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    query = Transaction.query.filter_by(user_id=current_user.id)
+    if start_date:
+        query = query.filter(Transaction.date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.date <= end_date)
+
+    txs = query.order_by(Transaction.date).all()
     forecast_data = generate_forecast(txs)
 
     total_revenus = sum(t.amount for t in txs if t.amount >= 0)
@@ -241,7 +285,9 @@ def forecast():
         solde_prevu=round(solde_prevu, 2),
         tendance=tendance,
         sante=sante,
-        conseil=conseil
+        conseil=conseil,
+        start_date=start_date,
+        end_date=end_date
     )
 
 

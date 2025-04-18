@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="p-6">
+<div class="p-4 sm:p-6 md:p-10">
   <h2 class="text-2xl font-bold mb-4">🔮 Prévision de Trésorerie (IA)</h2>
 
   {% if alerte %}
@@ -14,8 +14,23 @@
     </div>
   {% endif %}
 
+  <!-- Filtres responsive -->
+  <form method="GET" id="forecast-date-form" class="flex flex-wrap gap-2 items-center mb-4">
+    <label for="start_date">Du :</label>
+    <input type="date" name="start_date" id="start_date" value="{{ start_date }}" class="border p-2 rounded">
+
+    <label for="end_date">au :</label>
+    <input type="date" name="end_date" id="end_date" value="{{ end_date }}" class="border p-2 rounded">
+
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Mettre à jour</button>
+
+    <button type="button" class="bg-gray-300 text-black px-4 py-2 rounded" onclick="resetForecastDates()">
+      Réinitialiser les dates
+    </button>
+  </form>
+
   {% if historique and prevision %}
-    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       <div class="bg-green-100 text-green-800 p-4 rounded shadow">
         <h4 class="font-bold text-lg">Total Revenus</h4>
         <p class="text-2xl">{{ total_revenus }} €</p>
@@ -37,7 +52,9 @@
       </div>
     </div>
 
-    <canvas id="forecastChart" class="w-full bg-white p-4 rounded shadow"></canvas>
+    <div class="overflow-x-auto">
+      <canvas id="forecastChart" class="w-full bg-white p-4 rounded shadow"></canvas>
+    </div>
 
   {% else %}
     <p class="text-gray-600">Pas encore assez de données pour générer une prévision.</p>
@@ -66,13 +83,13 @@
           type: 'bar',
           label: 'Revenus (€)',
           data: revenus,
-          backgroundColor: 'rgba(34,197,94,0.7)' // vert
+          backgroundColor: 'rgba(34,197,94,0.7)'
         },
         {
           type: 'bar',
           label: 'Dépenses (€)',
           data: depenses,
-          backgroundColor: 'rgba(239,68,68,0.7)' // rouge
+          backgroundColor: 'rgba(239,68,68,0.7)'
         },
         {
           type: 'line',
@@ -87,6 +104,7 @@
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       scales: {
         y: {
           beginAtZero: true
@@ -94,5 +112,17 @@
       }
     }
   });
+
+  function resetForecastDates() {
+    const start = document.getElementById('start_date');
+    const end = document.getElementById('end_date');
+    const form = document.getElementById('forecast-date-form');
+
+    if (start && end && form) {
+      start.value = '';
+      end.value = '';
+      form.submit();
+    }
+  }
 </script>
 {% endblock %}

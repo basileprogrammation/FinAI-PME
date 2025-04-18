@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6 p-4 sm:p-6 md:p-10">
   <h2 class="text-2xl font-bold">Mes Transactions</h2>
 
   <!-- Toast de confirmation -->
@@ -13,19 +13,32 @@
     {% endif %}
   {% endwith %}
 
-  <!-- Import/Export -->
-  <form method="POST" action="/import" enctype="multipart/form-data" class="flex items-center space-x-4">
-    <input type="file" name="file" required class="border p-2 rounded bg-white">
-    <button class="bg-blue-600 text-white px-4 py-2 rounded">Importer CSV</button>
-    <a href="/export/excel" class="bg-green-600 text-white px-4 py-2 rounded">Exporter Excel</a>
-    <a href="/export/pdf" class="bg-red-600 text-white px-4 py-2 rounded">Exporter PDF</a>
+  <!-- Import/Export responsive -->
+  <form method="POST" action="/import" enctype="multipart/form-data" class="flex flex-wrap gap-2 mb-4">
+    <input type="file" name="file" required class="border p-2 rounded bg-white w-full sm:w-auto">
+    <button class="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded">Importer CSV</button>
+    <a href="/export/excel" class="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded text-center">Exporter Excel</a>
+    <a href="/export/pdf" class="w-full sm:w-auto bg-red-600 text-white px-4 py-2 rounded text-center">Exporter PDF</a>
   </form>
 
-  <!-- Ajouter transaction -->
-  <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="bg-blue-500 text-white px-4 py-2 rounded">Ajouter une transaction</button>
+  <!-- Ajout + filtre responsive -->
+  <div class="flex flex-wrap gap-2 mb-4">
+    <button onclick="document.getElementById('addModal').classList.remove('hidden')" class="bg-blue-500 text-white px-4 py-2 rounded w-full sm:w-auto">Ajouter une transaction</button>
+
+    <form method="GET" id="forecast-date-form" class="flex flex-wrap gap-2 items-center">
+      <label for="start_date">Du :</label>
+      <input type="date" name="start_date" id="start_date" value="{{ start_date }}" class="border p-2 rounded">
+
+      <label for="end_date">au :</label>
+      <input type="date" name="end_date" id="end_date" value="{{ end_date }}" class="border p-2 rounded">
+
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Mettre à jour</button>
+      <button type="button" class="bg-gray-300 text-black px-4 py-2 rounded" onclick="resetForecastDates()">Réinitialiser</button>
+    </form>
+  </div>
 
   <!-- Tableau -->
-  <div class="overflow-auto mt-4">
+  <div class="overflow-x-auto mt-4">
     <table class="min-w-full bg-white rounded shadow text-sm">
       <thead class="bg-blue-600 text-white">
         <tr>
@@ -41,10 +54,8 @@
           <td class="p-3">{{ tx.date }}</td>
           <td class="p-3">{{ tx.category }}</td>
           <td class="p-3">{{ tx.amount }}</td>
-          <td class="p-3 flex space-x-2">
-            <!-- Modifier -->
+          <td class="p-3 flex flex-wrap gap-2">
             <button onclick="openEditModal('{{ tx.id }}', '{{ tx.date }}', '{{ tx.category }}', '{{ tx.amount }}')" class="text-yellow-600 hover:underline">Modifier</button>
-            <!-- Supprimer -->
             <form method="POST" action="/delete" onsubmit="return confirm('Confirmer la suppression ?')">
               <input type="hidden" name="id" value="{{ tx.id }}">
               <button class="text-red-600 hover:underline">Supprimer</button>
@@ -110,6 +121,17 @@
     document.getElementById('edit-category').value = category;
     document.getElementById('edit-amount').value = amount;
     document.getElementById('editModal').classList.remove('hidden');
+  }
+  function resetForecastDates() {
+    const start = document.getElementById('start_date');
+    const end = document.getElementById('end_date');
+    const form = document.getElementById('forecast-date-form');
+
+    if (start && end && form) {
+      start.value = '';
+      end.value = '';
+      form.submit();
+    }
   }
 </script>
 {% endblock %}
