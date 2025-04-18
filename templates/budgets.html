@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">💸 Budgets mensuels</h2>
+
+<form method="POST" class="mb-6 space-y-4 max-w-md">
+  <input type="text" name="category" placeholder="Catégorie" required class="w-full border p-2 rounded" />
+  <input type="number" name="montant_max" placeholder="Montant max (€)" required class="w-full border p-2 rounded" />
+  <button class="bg-green-600 text-white px-4 py-2 rounded">Ajouter le budget</button>
+</form>
+
+<table class="w-full bg-white rounded shadow text-sm">
+  <thead class="bg-blue-600 text-white">
+    <tr><th class="p-2">Catégorie</th><th class="p-2">Plafond (€)</th></tr>
+  </thead>
+  <tbody>
+    {% for b in budgets %}
+    <tr class="border-b"><td class="p-2">{{ b.category }}</td><td class="p-2">{{ b.montant_max }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

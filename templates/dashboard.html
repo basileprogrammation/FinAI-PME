@@ -14,14 +14,20 @@
     </div>
 
     <!-- Alertes -->
+    <!-- Alertes dynamiques -->
     <div class="bg-yellow-100 p-4 rounded shadow">
       <h2 class="text-xl font-semibold mb-2">🔔 Alertes FinAI</h2>
-      <ul class="list-disc pl-6 text-sm space-y-1">
-        <li>Recevez des alertes si vos dépenses augmentent ou si un découvert est prédit</li>
-        <li>Analyse automatique de vos catégories de dépenses</li>
-        <li>Prévisions IA sur 30 jours avec Prophet</li>
-      </ul>
+      {% if alerts %}
+        <ul class="list-disc pl-6 text-sm space-y-1">
+          {% for alert in alerts %}
+            <li>{{ alert }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-sm text-gray-700">✅ Aucune alerte pour le moment. Votre trésorerie est saine !</p>
+      {% endif %}
     </div>
+
   </div>
 
   <div class="mt-8 flex flex-col sm:flex-row flex-wrap gap-4">

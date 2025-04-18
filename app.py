@@ -46,6 +46,12 @@ class Alerte(db.Model):
     date = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
+class Budget(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(100), nullable=False)
+    montant_max = db.Column(db.Float, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
 # ------------------ LOGIN ------------------
 
 @login_manager.user_loader
@@ -61,7 +67,14 @@ def splash():
 @app.route('/home')
 @login_required
 def home():
-    return render_template('dashboard.html', user=current_user)
+    # Récupérer toutes les transactions de l’utilisateur
+    txs = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date).all()
+
+    # Alertes IA existantes + budget
+    alerts = generate_alerts(txs)
+
+    return render_template('dashboard.html', user=current_user, alerts=alerts)
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -290,7 +303,109 @@ def forecast():
         end_date=end_date
     )
 
+@app.route('/budgets', methods=['GET', 'POST'])
+@login_required
+def budgets():
+    if request.method == 'POST':
+        new_budget = Budget(
+            category=request.form['category'],
+            montant_max=request.form['montant_max'],
+            user_id=current_user.id
+        )
+        db.session.add(new_budget)
+        db.session.commit()
+        flash("Budget ajouté avec succès.")
+        return redirect('/budgets')
+    
+    budgets = Budget.query.filter_by(user_id=current_user.id).all()
+    return render_template('budgets.html', budgets=budgets)
 
+@app.route('/categories')
+@login_required
+def analyse_categories():
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    txs = Transaction.query.filter_by(user_id=current_user.id).all()
+
+    # Filtrage par date
+    if start_date and end_date:
+        start = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end = datetime.strptime(end_date, '%Y-%m-%d').date()
+        txs = [t for t in txs if start <= t.date <= end]
+
+    # Dépenses uniquement
+    depenses = [t for t in txs if t.amount < 0]
+
+    categorie_totaux = {}
+    for t in depenses:
+        if t.category in categorie_totaux:
+            categorie_totaux[t.category] += abs(t.amount)
+        else:
+            categorie_totaux[t.category] = abs(t.amount)
+
+    categorie_totaux = dict(sorted(categorie_totaux.items(), key=lambda x: x[1], reverse=True))
+
+    return render_template('categories.html', data=categorie_totaux,
+                           start_date=start_date, end_date=end_date)
+from flask import make_response
+import matplotlib.pyplot as plt
+import base64
+
+@app.route('/rapport')
+@login_required
+def rapport_pdf():
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    # Récupérer transactions de l'utilisateur
+    txs = Transaction.query.filter_by(user_id=current_user.id).all()
+    if start_date and end_date:
+        start = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end = datetime.strptime(end_date, '%Y-%m-%d').date()
+        txs = [t for t in txs if start <= t.date <= end]
+
+    total_revenus = sum(t.amount for t in txs if t.amount > 0)
+    total_depenses = sum(abs(t.amount) for t in txs if t.amount < 0)
+    forecast_data = generate_forecast(txs)
+    conseil = generer_conseil(txs, forecast_data["prevision"])
+    alerts = generate_alerts(txs)
+
+    # ✅ Générer une image de prévision
+    plt.figure(figsize=(10, 4))
+    historique = [t.amount for t in txs]
+    labels = [t.date.strftime('%d/%m') for t in txs]
+    plt.plot(labels, historique, label='Historique')
+    plt.plot([p['day'] for p in forecast_data['prevision']],
+             [p['value'] for p in forecast_data['prevision']], linestyle='--', label='Prévision')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.legend()
+
+    # Encode image to base64
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    image_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close()
+
+    html = render_template('rapport_template.html',
+                           user=current_user,
+                           total_revenus=total_revenus,
+                           total_depenses=total_depenses,
+                           forecast=forecast_data['prevision'],
+                           alerts=alerts,
+                           conseil=conseil,
+                           start=start_date,
+                           end=end_date,
+                           chart=image_base64)
+
+    output = BytesIO()
+    pisa.CreatePDF(html, dest=output)
+    output.seek(0)
+
+    return send_file(output, as_attachment=True,
+                     download_name="rapport_mensuel.pdf", mimetype="application/pdf")
 
 def generate_forecast(transactions):
     if not transactions:
@@ -331,9 +446,17 @@ def generate_alerts(transactions):
     total = sum(t.amount for t in transactions)
     if total < 0:
         alerts.append("⚠️ Solde total négatif : attention au découvert.")
-    for t in transactions:
-        if abs(t.amount) > 2000:
-            alerts.append(f"💸 Dépense importante : {t.amount} € le {t.date}")
+    
+    # 🔔 Alerte si dépassement du budget
+    # Alertes budget
+    user_id = transactions[0].user_id if transactions else None
+    if user_id:
+        budgets = Budget.query.filter_by(user_id=user_id).all()
+        for budget in budgets:
+            total_cat = sum(t.amount for t in transactions if t.category == budget.category)
+            if abs(total_cat) > budget.montant_max:
+                alerts.append(f"🚨 Dépassement du budget pour {budget.category} : {abs(total_cat)} € > {budget.montant_max} €")
+
     return alerts
 
 # ------------------ MAIN ------------------

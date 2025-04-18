@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-6">
+  <h2 class="text-2xl font-bold mb-4">📊 Dépenses par Catégorie</h2>
+
+  <!-- Formulaire de filtre -->
+  <form method="GET" id="filter-form" class="flex flex-wrap gap-3 items-center mb-4">
+    <label>Du :</label>
+    <input type="date" name="start_date" id="start_date" value="{{ start_date }}" class="border p-2 rounded">
+    <label>au :</label>
+    <input type="date" name="end_date" id="end_date" value="{{ end_date }}" class="border p-2 rounded">
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Filtrer</button>
+    <button type="button" onclick="resetCategoryFilter()" class="bg-gray-300 text-black px-4 py-2 rounded">Réinitialiser</button>
+  </form>
+
+  {% if data %}
+    <canvas id="pieChart" class="w-full max-w-2xl mx-auto bg-white p-4 rounded shadow"></canvas>
+  {% else %}
+    <p class="text-gray-600">Aucune dépense trouvée pour cette période.</p>
+  {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const labels = {{ data.keys() | list | tojson }};
+  const values = {{ data.values() | list | tojson }};
+
+  const ctx = document.getElementById('pieChart');
+  if (ctx && labels.length) {
+    new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Montant (€)',
+          data: values,
+          backgroundColor: [
+            '#f87171', '#fb923c', '#facc15', '#4ade80', '#60a5fa', '#a78bfa', '#f472b6'
+          ],
+          hoverOffset: 10
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom'
+          }
+        }
+      }
+    });
+  }
+
+  function resetCategoryFilter() {
+    document.getElementById('start_date').value = '';
+    document.getElementById('end_date').value = '';
+    document.getElementById('filter-form').submit();
+  }
+</script>
+{% endblock %}
