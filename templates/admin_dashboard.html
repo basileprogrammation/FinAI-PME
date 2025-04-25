@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+  <h2 class="text-2xl font-bold mb-6">📊 Dashboard Administrateur</h2>
+
+  <!-- Statistiques globales -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-white p-4 rounded-lg shadow text-center">
+      <h3 class="text-sm text-gray-500">👥 Utilisateurs</h3>
+      <p class="text-3xl font-bold text-blue-600">{{ users|length }}</p>
+    </div>
+    <div class="bg-white p-4 rounded-lg shadow text-center">
+      <h3 class="text-sm text-gray-500">💼 Transactions</h3>
+      <p class="text-3xl font-bold text-purple-600">{{ total_transactions }}</p>
+    </div>
+    <div class="bg-white p-4 rounded-lg shadow text-center">
+      <h3 class="text-sm text-gray-500">💰 Revenus</h3>
+      <p class="text-2xl font-semibold text-green-600">{{ total_revenus }} €</p>
+    </div>
+    <div class="bg-white p-4 rounded-lg shadow text-center">
+      <h3 class="text-sm text-gray-500">💸 Dépenses</h3>
+      <p class="text-2xl font-semibold text-red-600">{{ total_depenses }} €</p>
+    </div>
+  </div>
+
+  <!-- Tableau des utilisateurs -->
+  <div class="bg-white p-4 rounded-lg shadow mt-6">
+    <h3 class="text-lg font-semibold mb-4">👥 Utilisateurs de votre entreprise</h3>
+    {% if users %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="text-gray-600 border-b">
+            <tr>
+              <th class="py-2 px-3">Email</th>
+              <th class="py-2 px-3">Rôle</th>
+              <th class="py-2 px-3">Dernière connexion</th>
+              <th class="py-2 px-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr class="border-b hover:bg-gray-50">
+              <td class="py-2 px-3">{{ u.email }}</td>
+              <td class="py-2 px-3">{{ u.role|capitalize }}</td>
+              <td class="py-2 px-3">{{ u.last_login.strftime('%d/%m/%Y à %Hh%M') if u.last_login else 'Jamais' }}</td>
+              <td class="py-2 px-3 space-x-2">
+                <a href="/admin/utilisateur/{{ u.id }}/transactions" class="text-blue-600 hover:underline text-sm">📄 Voir</a>
+                {% if not u.is_admin %}
+                  <a href="/admin/promouvoir/{{ u.id }}" class="text-green-600 hover:underline text-sm">🔼 Promouvoir</a>
+                {% else %}
+                  <a href="/admin/destituer/{{ u.id }}" class="text-red-600 hover:underline text-sm">🔽 Destituer</a>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="text-sm text-gray-500">Aucun utilisateur associé à votre entreprise.</p>
+    {% endif %}
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <div class="flex justify-center items-center space-x-4 mt-6 text-sm">
+    {% if pagination.has_prev %}
+      <a href="{{ url_for('admin_dashboard', page=pagination.prev_num) }}" class="text-blue-600 hover:underline">← Précédent</a>
+    {% endif %}
+    <span>Page {{ pagination.page }} sur {{ pagination.pages }}</span>
+    {% if pagination.has_next %}
+      <a href="{{ url_for('admin_dashboard', page=pagination.next_num) }}" class="text-blue-600 hover:underline">Suivant →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

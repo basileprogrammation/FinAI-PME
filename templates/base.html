@@ -1,47 +1,104 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FinAI-PME</title>
+  <link rel="icon" href="/static/favicon.ico" type="image/x-icon" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="/static/js/menu.js"></script>
+  <script>
+    // Mode sombre automatique si activé sur l'appareil
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+    tailwind.config = {
+    darkMode: 'media',
+    theme: {
+      extend: {
+        colors: {
+          dark: '#1f2937'
+        }
+      }
+    }
+  }
+  </script>
+  <style>
+    .fade-in {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100">
+
 
   <!-- NAVBAR -->
-  <header class="bg-white shadow">
+  <header class="bg-white dark:bg-gray-800 shadow">
     <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-      <h1 class="text-xl font-bold text-blue-700">FinAI-PME</h1>
-      <button id="menu-btn" class="block md:hidden focus:outline-none">
-        ☰
-      </button>
-      <nav id="menu" class="hidden md:flex space-x-4">
+      <div class="flex items-center space-x-2">
+        <img src="/static/logo.png" alt="Logo" class="h-8 w-8">
+        <h1 class="text-xl font-bold text-blue-700 dark:text-blue-400">FinAI-PME</h1>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <button id="dark-toggle" class="hidden md:block text-lg">🌓</button>
+        <button id="menu-btn" class="md:hidden text-xl focus:outline-none">☰</button>
+      </div>
+
+      <nav id="menu" class="hidden md:flex space-x-4 items-center">
         <a href="/home" class="hover:text-blue-600">Accueil</a>
         <a href="/transactions" class="hover:text-blue-600">Transactions</a>
         <a href="/forecast" class="hover:text-blue-600">Prévision IA</a>
         <a href="/budgets" class="hover:text-blue-600">Budgets 💸</a>
         <a href="/categories" class="hover:text-blue-600">Catégories 📊</a>
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+          <a href="/admin/utilisateurs" class="text-yellow-600 font-semibold">Utilisateurs 👥</a>
+          <a href="/admin/dashboard" class="text-purple-600 font-semibold">Admin 📊</a>
+        {% endif %}
         <a href="/logout" class="hover:text-red-600">Déconnexion</a>
       </nav>
     </div>
 
-    <!-- Mobile menu -->
-    <div id="mobile-menu" class="md:hidden hidden bg-white border-t">
-      <a href="/home" class="block px-4 py-2 border-b hover:bg-gray-100">Accueil</a>
-      <a href="/transactions" class="block px-4 py-2 border-b hover:bg-gray-100">Transactions</a>
-      <a href="/forecast" class="block px-4 py-2 border-b hover:bg-gray-100">Prévision IA</a>
-      <a href="/budgets" class="block px-4 py-2 border-b hover:bg-gray-100">Budgets 💸</a>
-      <a href="/categories" class="block px-4 py-2 border-b hover:bg-gray-100">Catégories 📊</a>
-      
-      <a href="/logout" class="block px-4 py-2 hover:bg-gray-100 text-red-600">Déconnexion</a>
+    <!-- Menu mobile -->
+    <div id="mobile-menu" class="md:hidden hidden bg-white dark:bg-gray-800 border-t fade-in">
+      <a href="/home" class="block px-4 py-2 border-b hover:bg-gray-100 dark:hover:bg-gray-700">Accueil</a>
+      <a href="/transactions" class="block px-4 py-2 border-b hover:bg-gray-100 dark:hover:bg-gray-700">Transactions</a>
+      <a href="/forecast" class="block px-4 py-2 border-b hover:bg-gray-100 dark:hover:bg-gray-700">Prévision IA</a>
+      <a href="/budgets" class="block px-4 py-2 border-b hover:bg-gray-100 dark:hover:bg-gray-700">Budgets 💸</a>
+      <a href="/categories" class="block px-4 py-2 border-b hover:bg-gray-100 dark:hover:bg-gray-700">Catégories 📊</a>
+      {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <a href="/admin/utilisateurs" class="block px-4 py-2 border-b text-yellow-600 font-semibold hover:bg-gray-100 dark:hover:bg-gray-700">Utilisateurs 👥</a>
+        <a href="/admin/dashboard" class="block px-4 py-2 border-b text-purple-600 font-semibold hover:bg-gray-100 dark:hover:bg-gray-700">Admin 📊</a>
+      {% endif %}
+      <a href="/logout" class="block px-4 py-2 text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">Déconnexion</a>
     </div>
   </header>
+
+  <!-- Bandeau Admin -->
+  {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    <div class="bg-yellow-200 text-yellow-800 text-center py-2 text-sm">
+      🔐 Vous êtes connecté en tant qu’administrateur
+    </div>
+  {% endif %}
 
   <!-- MAIN CONTENT -->
   <main class="max-w-7xl mx-auto px-4 py-6">
     {% block content %}{% endblock %}
   </main>
 
+  <!-- Script pour menu et dark toggle -->
+  <script>
+    document.getElementById('menu-btn').addEventListener('click', () => {
+      document.getElementById('mobile-menu').classList.toggle('hidden');
+    });
+
+    document.getElementById('dark-toggle').addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+    });
+  </script>
 </body>
 </html>

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+  <h2 class="text-2xl font-bold mb-4">👥 Liste des utilisateurs</h2>
+
+  <div class="mb-4">
+    <input type="text" id="searchInput" placeholder="🔍 Rechercher par email..." 
+           class="w-full md:w-1/3 border px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+  </div>
+
+  {% if utilisateurs %}
+  <div class="overflow-x-auto bg-white rounded-lg shadow">
+    <table class="w-full text-sm text-left" id="usersTable">
+      <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
+        <tr>
+          <th class="px-4 py-3">Email</th>
+          <th class="px-4 py-3">Rôle</th>
+          <th class="px-4 py-3">Date d'inscription</th>
+          <th class="px-4 py-3">Dernière connexion</th>
+          <th class="px-4 py-3 text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="text-gray-700">
+        {% for user in utilisateurs %}
+        <tr class="border-b hover:bg-gray-50">
+          <td class="px-4 py-2">{{ user.email }}</td>
+          <td class="px-4 py-2 capitalize">{{ user.role }}</td>
+          <td class="px-4 py-2">
+            {{ user.date_creation.strftime('%d/%m/%Y à %Hh%M') if user.date_creation else 'N/A' }}
+          </td>
+          
+          <td class="px-4 py-2">
+            {{ user.last_login|format_last_login }}
+          </td>
+          <td class="px-4 py-2 space-x-2 text-center">
+            <a href="/admin/utilisateur/{{ user.id }}/transactions" class="text-blue-600 hover:underline text-sm">📄 Transactions</a>
+            {% if not user.is_admin %}
+              <a href="/admin/promouvoir/{{ user.id }}" class="text-green-600 hover:underline text-sm">🔼 Promouvoir</a>
+            {% else %}
+              <a href="/admin/destituer/{{ user.id }}" class="text-red-600 hover:underline text-sm">🔽 Destituer</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="text-gray-600 text-sm">Aucun utilisateur à afficher pour cette entreprise.</p>
+  {% endif %}
+</div>
+
+<script>
+  document.getElementById("searchInput").addEventListener("input", function () {
+    const filter = this.value.toLowerCase();
+    const rows = document.querySelectorAll("#usersTable tbody tr");
+
+    rows.forEach(row => {
+      const email = row.querySelector("td").textContent.toLowerCase();
+      row.style.display = email.includes(filter) ? "" : "none";
+    });
+  });
+</script>
+{% endblock %}

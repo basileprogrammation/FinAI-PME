@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-6 space-y-6">
+  <h2 class="text-2xl font-bold">Transactions de {{ utilisateur.email }}</h2>
+
+  <!-- Formulaire de filtre -->
+  <form method="GET" class="flex flex-wrap gap-4 items-center bg-white p-4 rounded shadow">
+    <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}" class="border p-2 rounded" />
+    <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}" class="border p-2 rounded" />
+    <input type="text" name="category" placeholder="Catégorie" value="{{ request.args.get('category', '') }}" class="border p-2 rounded" />
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Filtrer</button>
+    <a href="/admin/utilisateur/{{ utilisateur.id }}/transactions" class="bg-gray-300 px-4 py-2 rounded">Réinitialiser</a>
+    <a href="/admin/utilisateur/{{ utilisateur.id }}/export/pdf" class="bg-red-600 text-white px-4 py-2 rounded">Exporter PDF</a>
+  </form>
+
+  <!-- Graphique -->
+  {% if category_totals %}
+  <div class="bg-white p-4 rounded shadow">
+    <h3 class="text-lg font-semibold mb-4">Répartition par catégorie</h3>
+    <canvas id="categoryChart"></canvas>
+  </div>
+  {% endif %}
+
+  <!-- Liste des transactions -->
+  <div class="overflow-auto">
+    <table class="min-w-full bg-white rounded shadow text-sm">
+      <thead class="bg-blue-600 text-white">
+        <tr>
+          <th class="p-3 text-left">Date</th>
+          <th class="p-3 text-left">Catégorie</th>
+          <th class="p-3 text-left">Montant</th>
+          <th class="p-3 text-left">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in transactions %}
+        <tr class="border-b hover:bg-gray-100">
+          <td class="p-3">{{ tx.date }}</td>
+          <td class="p-3">{{ tx.category }}</td>
+          <td class="p-3">{{ tx.amount }}</td>
+          <td class="p-3">
+            <button onclick="openEditModal('{{ tx.id }}', '{{ tx.date }}', '{{ tx.category }}', '{{ tx.amount }}')" class="text-yellow-600 hover:underline">Modifier</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal de modification -->
+<div id="editModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center hidden">
+  <div class="bg-white p-6 rounded w-full max-w-md">
+    <h3 class="text-xl font-bold mb-4">Modifier la transaction</h3>
+    <form method="POST" action="/admin/transaction/update" class="space-y-4">
+      <input type="hidden" name="id" id="edit-id">
+      <input type="date" name="date" id="edit-date" class="w-full border p-2 rounded" required>
+      <input type="text" name="category" id="edit-category" class="w-full border p-2 rounded" required>
+      <input type="number" step="0.01" name="amount" id="edit-amount" class="w-full border p-2 rounded" required>
+      <div class="flex justify-end space-x-2">
+        <button type="submit" class="bg-yellow-600 text-white px-4 py-2 rounded">Mettre à jour</button>
+        <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')" class="text-gray-600">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Chart.js + Script modale -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  function openEditModal(id, date, category, amount) {
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-date').value = date;
+    document.getElementById('edit-category').value = category;
+    document.getElementById('edit-amount').value = amount;
+    document.getElementById('editModal').classList.remove('hidden');
+  }
+
+  {% if category_totals %}
+    const categoryData = {{ category_totals | tojson }};
+    const ctx = document.getElementById('categoryChart');
+    new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: Object.keys(categoryData),
+        datasets: [{
+          data: Object.values(categoryData),
+          backgroundColor: ['#3b82f6', '#ef4444', '#f59e0b', '#10b981', '#6366f1']
+        }]
+      }
+    });
+  {% endif %}
+</script>
+{% endblock %}

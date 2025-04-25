@@ -14,7 +14,6 @@
     </div>
 
     <!-- Alertes -->
-    <!-- Alertes dynamiques -->
     <div class="bg-yellow-100 p-4 rounded shadow">
       <h2 class="text-xl font-semibold mb-2">🔔 Alertes FinAI</h2>
       {% if alerts %}
@@ -27,12 +26,19 @@
         <p class="text-sm text-gray-700">✅ Aucune alerte pour le moment. Votre trésorerie est saine !</p>
       {% endif %}
     </div>
-
   </div>
 
+  <!-- Liens principaux -->
   <div class="mt-8 flex flex-col sm:flex-row flex-wrap gap-4">
     <a href="/transactions" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 text-center">Voir mes transactions</a>
     <a href="/forecast" class="bg-purple-600 text-white px-4 py-2 rounded shadow hover:bg-purple-700 text-center">Prévisions IA</a>
+
+    <!-- Liens admin visibles uniquement pour les administrateurs -->
+    {% if user.is_admin %}
+      <a href="/admin/utilisateurs" class="bg-teal-600 text-white px-4 py-2 rounded shadow hover:bg-teal-700 text-center">👥 Utilisateurs</a>
+      <a href="/admin/dashboard" class="bg-indigo-600 text-white px-4 py-2 rounded shadow hover:bg-indigo-700 text-center">📊 Admin Dashboard</a>
+    {% endif %}
+
     <a href="/logout" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 text-center sm:ml-auto">Déconnexion</a>
   </div>
 </div>

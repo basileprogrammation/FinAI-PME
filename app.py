@@ -26,12 +26,24 @@ login_manager.login_view = 'login'
 
 # ------------------ MODELES ------------------
 
+class Entreprise(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(100), unique=True, nullable=False)
+    utilisateurs = db.relationship('User', backref='entreprise', lazy=True)  # relation vers les utilisateurs
+
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     alerts_enabled = db.Column(db.Boolean, default=True)
-    last_login = db.Column(db.DateTime)  # 👈 nouvelle colonne
+    last_login = db.Column(db.DateTime)
+    role = db.Column(db.String(20), default='user')  # "user" ou "admin"
+    is_admin = db.Column(db.Boolean, default=False)
+    entreprise_id = db.Column(db.Integer, db.ForeignKey('entreprise.id'))
+    admin_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # lien vers l’admin
+    admin = db.relationship('User', remote_side=[id], backref='membres')  # liste des membres sous cet admin
+
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -51,6 +63,8 @@ class Budget(db.Model):
     category = db.Column(db.String(100), nullable=False)
     montant_max = db.Column(db.Float, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+
 
 # ------------------ LOGIN ------------------
 
@@ -89,16 +103,54 @@ def login():
             flash("Identifiants incorrects")
     return render_template('login.html')
 
+# ----------------------
+# ROUTE: Inscription - /register
+# ----------------------
+# MODIFICATION DU CODE REGISTER POUR ATTRIBUER LE BON ADMIN PAR ENTREPRISE
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        if User.query.filter_by(email=request.form['email']).first():
+        email = request.form['email']
+        password = request.form['password']
+        entreprise_nom = request.form['entreprise']
+
+        if User.query.filter_by(email=email).first():
             flash("Email déjà utilisé")
             return redirect('/register')
-        hashed_pw = generate_password_hash(request.form['password'], method='pbkdf2:sha256', salt_length=8)
-        new_user = User(email=request.form['email'], password=hashed_pw)
+
+        # Créer ou retrouver l'entreprise
+        entreprise = Entreprise.query.filter_by(nom=entreprise_nom).first()
+        if not entreprise:
+            entreprise = Entreprise(nom=entreprise_nom)
+            db.session.add(entreprise)
+            db.session.commit()
+
+            # Créer automatiquement un admin pour cette nouvelle entreprise
+            admin = User(
+                email=f"admin_{entreprise_nom.lower()}@finai.com",
+                password=generate_password_hash("admin123", method='pbkdf2:sha256', salt_length=8),
+                is_admin=True,
+                role="admin",
+                entreprise_id=entreprise.id
+            )
+            db.session.add(admin)
+            db.session.commit()
+        else:
+            admin = User.query.filter_by(entreprise_id=entreprise.id, is_admin=True).first()
+
+        # Créer le nouvel utilisateur et l'associer à l'admin de l'entreprise
+        hashed_pw = generate_password_hash(password, method='pbkdf2:sha256', salt_length=8)
+        new_user = User(
+            email=email,
+            password=hashed_pw,
+            entreprise_id=entreprise.id,
+            role='user',
+            is_admin=False,
+            admin_id=admin.id if admin else None
+        )
         db.session.add(new_user)
         db.session.commit()
+
         flash("Inscription réussie !")
         return redirect('/login')
     return render_template('register.html')
@@ -302,7 +354,7 @@ def forecast():
         start_date=start_date,
         end_date=end_date
     )
-
+# ------------------ BUDGETS ------------------
 @app.route('/budgets', methods=['GET', 'POST'])
 @login_required
 def budgets():
@@ -351,7 +403,7 @@ def analyse_categories():
 from flask import make_response
 import matplotlib.pyplot as plt
 import base64
-
+# ------------------ RAPPORTS ------------------
 @app.route('/rapport')
 @login_required
 def rapport_pdf():
@@ -407,6 +459,198 @@ def rapport_pdf():
     return send_file(output, as_attachment=True,
                      download_name="rapport_mensuel.pdf", mimetype="application/pdf")
 
+
+# ----------------------
+# ROUTE: Voir les utilisateurs de la même entreprise - /admin/utilisateurs
+# ----------------------
+
+@app.route('/admin/utilisateurs')
+@login_required
+def admin_utilisateurs():
+    if not current_user.is_admin:
+        flash("Accès réservé à l’administrateur.")
+        return redirect('/home')
+
+    search_email = request.args.get('search', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    query = User.query.filter_by(admin_id=current_user.id)
+    if search_email:
+        query = query.filter(User.email.ilike(f"%{search_email}%"))
+
+    utilisateurs_pagines = query.paginate(page=page, per_page=per_page)
+
+    data_utilisateurs = []
+    for utilisateur in utilisateurs_pagines.items:
+        txs = Transaction.query.filter_by(user_id=utilisateur.id).all()
+        total_depenses = round(sum(t.amount for t in txs if t.amount < 0), 2)
+        total_revenus = round(sum(t.amount for t in txs if t.amount > 0), 2)
+        data_utilisateurs.append({
+            "id": utilisateur.id,
+            "email": utilisateur.email,
+            "role": utilisateur.role,
+            "date_creation": utilisateur.date_creation,
+            "last_login": utilisateur.last_login,
+            "nb_transactions": len(txs),
+            "depenses": total_depenses,
+            "revenus": total_revenus,
+            "is_admin": utilisateur.is_admin
+        })
+
+    return render_template(
+        'admin_utilisateurs.html',
+        utilisateurs=data_utilisateurs,
+        pagination=utilisateurs_pagines,
+        search=search_email
+    )
+
+
+# ----------------------
+# ROUTE: Voir transactions d’un utilisateur - /admin/utilisateur/<id>/transactions
+# ----------------------
+
+@app.route('/admin/utilisateur/<int:user_id>/transactions')
+@login_required
+def admin_utilisateur_transactions(user_id):
+    if not current_user.is_admin:
+        return redirect('/home')
+
+    utilisateur = User.query.get_or_404(user_id)
+
+    # Filtres
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    category = request.args.get('category')
+
+    query = Transaction.query.filter_by(user_id=user_id)
+
+    if start_date:
+        query = query.filter(Transaction.date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.date <= end_date)
+    if category:
+        query = query.filter(Transaction.category.ilike(f"%{category}%"))
+
+    transactions = query.order_by(Transaction.date.desc()).all()
+
+    # Graphique : total par catégorie
+    category_totals = {}
+    for tx in transactions:
+        category_totals[tx.category] = category_totals.get(tx.category, 0) + tx.amount
+
+    return render_template('admin_transactions.html',
+                           utilisateur=utilisateur,
+                           transactions=transactions,
+                           start_date=start_date,
+                           end_date=end_date,
+                           category=category,
+                           category_totals=category_totals)
+
+
+# ----------------------
+# ROUTE: Export PDF des transactions d’un utilisateur - /admin/utilisateur/<id>/export/pdf
+# ----------------------
+
+@app.route('/admin/utilisateur/<int:user_id>/export/pdf')
+@login_required
+def export_pdf_admin(user_id):
+    if current_user.role != 'admin':
+        flash("Accès refusé.")
+        return redirect('/home')
+
+    utilisateur = User.query.get_or_404(user_id)
+    if utilisateur.entreprise_id != current_user.entreprise_id:
+        flash("Accès refusé.")
+        return redirect('/home')
+
+    txs = Transaction.query.filter_by(user_id=user_id).order_by(Transaction.date).all()
+    html = render_template('pdf_template.html', transactions=txs)
+    output = BytesIO()
+    pisa.CreatePDF(html, dest=output)
+    output.seek(0)
+    return send_file(output, as_attachment=True, download_name=f"{utilisateur.email}_transactions.pdf")
+
+
+# ----------------------
+# ROUTE: Modifier une transaction (admin) - /admin/transaction/update
+# ----------------------
+
+@app.route('/admin/transaction/update', methods=['POST'])
+@login_required
+def admin_update_transaction():
+    if not current_user.is_admin:
+        return redirect('/home')
+
+    tx_id = request.form['id']
+    tx = Transaction.query.get_or_404(tx_id)
+
+    tx.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
+    tx.category = request.form['category']
+    tx.amount = float(request.form['amount'])
+
+    db.session.commit()
+    flash("Transaction mise à jour avec succès")
+    return redirect(f"/admin/utilisateur/{tx.user_id}/transactions")
+
+@app.route('/admin/promouvoir/<int:user_id>')
+@app.route('/admin/promouvoir/<int:user_id>')
+@login_required
+def promouvoir_admin(user_id):
+    if not current_user.is_admin:
+        return redirect('/home')
+
+    user = User.query.get_or_404(user_id)
+    user.is_admin = True
+    user.role = "admin"  # ✅ Mettre à jour le rôle aussi
+    db.session.commit()
+    flash(f"{user.email} est maintenant administrateur.")
+    return redirect('/admin/utilisateurs')
+
+
+@app.route('/admin/destituer/<int:user_id>')
+@login_required
+def retirer_admin(user_id):
+    if not current_user.is_admin:
+        return redirect('/home')
+
+    user = User.query.get_or_404(user_id)
+    user.is_admin = False
+    user.role = "user"  # ✅ Revenir au rôle "user"
+    db.session.commit()
+    flash(f"{user.email} n'est plus administrateur.")
+    return redirect('/admin/utilisateurs')
+
+
+@app.route('/admin/dashboard')
+@login_required
+def admin_dashboard():
+    if not current_user.is_admin:
+        return redirect('/home')
+
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
+    # ✅ uniquement les utilisateurs de l’admin connecté
+    users_paginated = User.query.filter_by(admin_id=current_user.id).paginate(page=page, per_page=per_page)
+    users = users_paginated.items
+    user_ids = [u.id for u in users]
+
+    transactions = Transaction.query.filter(Transaction.user_id.in_(user_ids)).all()
+    total_transactions = len(transactions)
+    total_depenses = sum(t.amount for t in transactions if t.amount < 0)
+    total_revenus = sum(t.amount for t in transactions if t.amount > 0)
+
+    return render_template('admin_dashboard.html',
+                           users=users,
+                           total_transactions=total_transactions,
+                           total_depenses=total_depenses,
+                           total_revenus=total_revenus,
+                           pagination=users_paginated)
+
+
+# ------------------ LES FONCTIONS UTILIES ---------------------------
+# ------------------ FORECAST------------------
 def generate_forecast(transactions):
     if not transactions:
         return {'historique': [], 'prevision': [], 'alerte': False}
@@ -458,10 +702,46 @@ def generate_alerts(transactions):
                 alerts.append(f"🚨 Dépassement du budget pour {budget.category} : {abs(total_cat)} € > {budget.montant_max} €")
 
     return alerts
+@app.template_filter('format_last_login')
+def format_last_login(date):
+    if not date:
+        return "Jamais"
+
+    now = datetime.utcnow()
+    diff = now - date
+
+    if diff.days == 0:
+        return f"Aujourd’hui à {date.strftime('%Hh%M')}"
+    elif diff.days == 1:
+        return f"Hier à {date.strftime('%Hh%M')}"
+    elif diff.days < 7:
+        return f"{date.strftime('%A')} à {date.strftime('%Hh%M')}"  # ex : lundi à 14h30
+    else:
+        return date.strftime("Le %d/%m à %Hh%M")
 
 # ------------------ MAIN ------------------
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+
+        # Créer un compte admin si aucun admin n'existe
+        if not User.query.filter_by(is_admin=True).first():
+            from werkzeug.security import generate_password_hash
+            admin = User(
+                email="admin@finai.com",
+                password=generate_password_hash("admin123", method='pbkdf2:sha256', salt_length=8),
+                is_admin=True
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print("✅ Compte admin par défaut créé : admin@finai.com / admin123")
+        # ✅ Mettre une date de connexion initiale à ceux qui en ont pas encore
+        users = User.query.all()
+        for u in users:
+            if not u.last_login:
+                u.last_login = datetime.utcnow()
+        db.session.commit()
+        print("✅ last_login mis à jour pour les utilisateurs sans date.")
+    # ✅ Toujours exécuter le serveur ici, hors du if
     app.run(debug=True)
